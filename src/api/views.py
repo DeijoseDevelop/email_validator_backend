@@ -124,7 +124,7 @@ class ValidateEmailView(APIView):
             zip_file.writestr('archivo2.xlsx', excel_writer.invalid_excel_file.read())
         zip_buffer.seek(0)
 
-        return send_file(zip_buffer, as_attachment=True, mimetype="application/zip", download_name="LSV-TECH_Portafolio_2023_ESP _V4 Jul 13 2023.pdf")
+        return send_file(zip_buffer, as_attachment=True, mimetype="application/zip", download_name="BASE DE DATOS BOGOTÁ PARA CORREO.zip")
 
 
 # adding routes
