@@ -11,9 +11,8 @@ class ExcelWriter(object):
         self.invalid_emails = []
         self.valid_excel_file = BytesIO()
         self.invalid_excel_file = BytesIO()
-        self._set_seeks()
 
-    def _set_seeks(self):
+    def set_seeks(self):
         self.valid_excel_file.seek(0)
         self.invalid_excel_file.seek(0)
 

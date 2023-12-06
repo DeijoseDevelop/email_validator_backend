@@ -1,10 +1,12 @@
 import io
 import json
 import zipfile
+import threading
 
 from validate_dns_email import EmailDNSValidator
 from flask import Blueprint, request, current_app, Response, send_file
 from flask_cors import cross_origin
+import pandas as pd
 
 from src.utils import x_api_key_required
 from src.interfaces import APIView
@@ -100,32 +102,62 @@ class ValidateEmailView(APIView):
             return Response(json.dumps({"message": "Missing email header in excel"}), mimetype='application/json', status=404)
 
         excel_writer = ExcelWriter(excel_reader.data)
-        for email in excel_reader.data['email']:
+        df = excel_reader.data
+
+        chunks = [df[i:i+200] for i in range(0, len(df), 200)]
+        threads = []
+
+        try:
+            for chunk in chunks:
+                thread = threading.Thread(
+                    target=self.validate_emails,
+                    args=(
+                        chunk,
+                        excel_writer.valid_emails,
+                        excel_writer.invalid_emails
+                    )
+                )
+                thread.start()
+                threads.append(thread)
+
+            for thread in threads:
+                thread.join()
+
+            df_valid = excel_writer.make_dataframe(excel_writer.valid_emails)
+            df_invalid = excel_writer.make_dataframe(excel_writer.invalid_emails)
+
+            excel_writer.make_excel(excel_writer.valid_excel_file, df_valid)
+            excel_writer.make_excel(excel_writer.invalid_excel_file, df_invalid)
+
+            zip_buffer = io.BytesIO()
+            excel_writer.set_seeks()
+            with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+                zip_file.writestr('Email validated.xlsx', excel_writer.valid_excel_file.read())
+                zip_file.writestr('Email rejected.xlsx', excel_writer.invalid_excel_file.read())
+            zip_buffer.seek(0)
+
+            return send_file(zip_buffer, as_attachment=True, mimetype="application/zip", download_name="BASE DE DATOS BOGOTÁ PARA CORREO.zip")
+
+        except Exception as error:
+            return Response(json.dumps({"message": str(error)}), mimetype='application/json', status=500)
+
+
+    def validate_emails(self, data, valid, invalid):
+        valid_emails = []
+        invalid_emails = []
+        for i, email in enumerate(data['email']):
             try:
                 email_validator = EmailDNSValidator(email.lower())
                 is_validated = email_validator.validate_email(verify=True, email_protected=True)
                 if isinstance(is_validated, bool) and is_validated:
-                    excel_writer.add_valid_email({"email": email})
+                    valid_emails.append({"email": email})
                 else:
-                    excel_writer.add_invalid_email({"email": email})
+                    invalid_emails.append({"email": email})
             except:
-                excel_writer.add_invalid_email({"email": email})
-                continue
+                invalid_emails.append({"email": email})
 
-        df_valid = excel_writer.make_dataframe(excel_writer.valid_emails)
-        df_invalid = excel_writer.make_dataframe(excel_writer.invalid_emails)
-
-        excel_writer.make_excel(excel_writer.valid_excel_file, df_valid)
-        excel_writer.make_excel(excel_writer.invalid_excel_file, df_invalid)
-
-        zip_buffer = io.BytesIO()
-        with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
-            zip_file.writestr('archivo1.xlsx', excel_writer.valid_excel_file.read())
-            zip_file.writestr('archivo2.xlsx', excel_writer.invalid_excel_file.read())
-        zip_buffer.seek(0)
-
-        return send_file(zip_buffer, as_attachment=True, mimetype="application/zip", download_name="BASE DE DATOS BOGOTÁ PARA CORREO.zip")
-
+        valid.extend(valid_emails)
+        invalid.extend(invalid_emails)
 
 # adding routes
 api_blueprint.add_url_rule(
