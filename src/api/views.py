@@ -98,7 +98,7 @@ class ValidateEmail(APIView):
         body = request.json
 
         email = Email.create_email(body['email'])
-        email_validator = EmailDNSValidator(email.lower())
+        email_validator = EmailDNSValidator(email.get_value().lower())
 
         try:
             is_validated = email_validator.validate_email(verify=True, email_protected=True)
