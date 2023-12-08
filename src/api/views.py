@@ -4,9 +4,8 @@ import zipfile
 import threading
 
 from validate_dns_email import EmailDNSValidator
-from flask import Blueprint, request, current_app, Response, send_file
+from flask import Blueprint, request, Response, send_file
 from flask_cors import cross_origin
-import pandas as pd
 
 from src.utils import x_api_key_required
 from src.interfaces import APIView
@@ -15,7 +14,103 @@ from src.models import Email, ExcelReader, ExcelWriter
 
 api_blueprint = Blueprint('api', __name__)
 
-class ValidateEmailView(APIView):
+
+class ValidateEmail(APIView):
+    parameters =[
+        {
+            'in': 'header',
+            'name': 'x-api-key',
+            'type': 'string',
+            'required': True,
+            'description': 'API key for authentication'
+        },
+        {
+            'in': 'header',
+            'name': 'Authorization',
+            'type': 'string',
+            'required': True,
+            'description': 'Access token for authentication'
+        },
+        {
+            'in': 'query',
+            'name': 'verify',
+            'type': 'boolean',
+            'required': False,
+            'description': 'Verify email domain exist',
+        },
+        {
+            'in': 'query',
+            'name': 'email_protected',
+            'type': 'boolean',
+            'required': False,
+            'description': 'If email domain is protected',
+        },
+        {
+            "in": "body",
+            "name": "email",
+            "description": "Email to validate",
+            "required": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "example": "user@example.com"
+                    },
+                }
+            }
+        },
+    ]
+    responses = {
+        200: {
+            "description": "Validate email address",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "results": {
+                        "type": "boolean",
+                        "description": "Email is required",
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Email address is required",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "description": "Email is required",
+                    }
+                }
+            }
+        },
+    }
+
+    @x_api_key_required
+    @cross_origin(supports_credentials=True)
+    def post(self):
+
+        if (request.content_length == 0):
+            return Response(json.dumps({"message": "email is required"}), mimetype='application/json', status=400)
+
+        body = request.json
+
+        email = Email.create_email(body['email'])
+        email_validator = EmailDNSValidator(email.lower())
+
+        try:
+            is_validated = email_validator.validate_email(verify=True, email_protected=True)
+        except:
+            is_validated = False
+
+        response = {"results": is_validated}
+
+        return Response(json.dumps(response), mimetype='application/json', status=200)
+
+
+class ValidateEmailFileView(APIView):
     parameters =[
         {
             'in': 'header',
@@ -161,7 +256,13 @@ class ValidateEmailView(APIView):
 
 # adding routes
 api_blueprint.add_url_rule(
-    '/api/v1/validate/email/',
-    view_func=ValidateEmailView.as_view('validate_email_view'),
+    '/api/v1/email/validate/file/',
+    view_func=ValidateEmailFileView.as_view('email_validate_file_view'),
+    methods=["POST"]
+)
+
+api_blueprint.add_url_rule(
+    '/api/v1/email/validate/email/',
+    view_func=ValidateEmail.as_view('email_validate_email_view'),
     methods=["POST"]
 )
