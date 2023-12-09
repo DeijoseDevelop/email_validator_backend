@@ -236,9 +236,9 @@ class ValidateEmailFileView(APIView):
                 zip_file.writestr('Email rejected.xlsx', excel_writer.invalid_excel_file.read())
             zip_buffer.seek(0)
 
-            base64_file = base64.b64encode(zip_buffer)
+            base64_file = base64.b64encode(zip_buffer.getvalue())
 
-            return Response(json.dumps({"data": base64_file}), mimetype='application/json', status=200)
+            return Response(json.dumps({"data": base64_file.decode()}), mimetype='application/json', status=200)
 
         except Exception as error:
             return Response(json.dumps({"message": str(error)}), mimetype='application/json', status=500)
