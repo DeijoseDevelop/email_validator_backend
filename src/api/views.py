@@ -102,7 +102,7 @@ class ValidateEmail(APIView):
         email_validator = EmailDNSValidator(email.get_value().lower())
 
         try:
-            is_validated = email_validator.validate_email(verify=True, email_protected=True)
+            is_validated = email_validator.validate_email(verify=True, email_protected=True) or False
         except:
             is_validated = False
 
