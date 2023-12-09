@@ -1,5 +1,6 @@
 import io
 import json
+import base64
 import zipfile
 import threading
 
@@ -235,7 +236,9 @@ class ValidateEmailFileView(APIView):
                 zip_file.writestr('Email rejected.xlsx', excel_writer.invalid_excel_file.read())
             zip_buffer.seek(0)
 
-            return send_file(zip_buffer, as_attachment=True, mimetype="application/zip", download_name="BASE DE DATOS BOGOTÁ PARA CORREO.zip")
+            base64_file = base64.b64encode(zip_buffer)
+
+            return Response(json.dumps({"data": base64_file}), mimetype='application/json', status=200)
 
         except Exception as error:
             return Response(json.dumps({"message": str(error)}), mimetype='application/json', status=500)
