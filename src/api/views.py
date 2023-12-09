@@ -248,8 +248,6 @@ class ValidateEmailFileView(APIView):
         valid_emails = []
         invalid_emails = []
         for i, email in enumerate(data['email']):
-            if i > 10:
-                break
             try:
                 email_validator = EmailDNSValidator(email.lower())
                 is_validated = email_validator.validate_email(verify=True, email_protected=True)
