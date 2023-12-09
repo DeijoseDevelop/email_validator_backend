@@ -191,6 +191,10 @@ class ValidateEmailFileView(APIView):
             return Response(json.dumps({"message": "excel file is required"}), mimetype='application/json', status=404)
 
         file = request.files["excel"]
+
+        if not file.filename.endswith(".xlsx") and not file.filename.endswith(".xls"):
+            return Response(json.dumps({"message": "File invalid, Excel only"}), mimetype='application/json', status=400)
+
         excel_reader = ExcelReader(file=file)
 
         if not excel_reader.is_header_valid():
